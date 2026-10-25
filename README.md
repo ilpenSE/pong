@@ -12,3 +12,16 @@
 $ make
 $ ./main
 ```
+
+## Game
+
+- Press W or S to move up/down the left paddle
+- Press up or down arrow keys to move up/down the right paddle
+- Press SPACE to pause the game (everything'll be frozen)
+- If a side couldn't bounce the ball and ball passes through screen, this counts as other side's score
+- On any scoring, ball'll be resetted to the start position (center of the screen) and goes to scorer's side
+
+## References
+
+- Raylib: https://raylib.com
+- Sounds: https://opengameart.org/content/3-ping-pong-sounds-8-bit-style
