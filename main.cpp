@@ -3,6 +3,7 @@
 #include <raylib.h>
 #include <string>
 #include <concepts>
+#include <cstring>
 
 // Constants
 // Ball
@@ -86,6 +87,65 @@ static Paddle right_paddle;
 static int score_left, score_right;
 static Sound score_sound, pong_sound;
 
+void Load();
+void Update(float dt);
+void Draw();
+void Close();
+
+const char *shift(int &argc, char **&argv) {
+  return argc == 0 ? nullptr : (argc--, *argv++);
+}
+
+int main(int argc, char **argv)
+{
+  const char *program_name = shift(argc, argv);
+  int fps = 60;
+
+  const char *arg_cstr;
+  while ((arg_cstr = shift(argc, argv)) != nullptr) {
+    std::string_view arg = arg_cstr;
+    if (arg == "--fps") {
+      const char *fps_cstr = shift(argc, argv);
+      if (!fps_cstr) {
+        fprintf(stderr, "ERROR: --fps should have an integer!\n");
+        return 1;
+      }
+
+      try {
+        fps = std::stoi(fps_cstr);
+      } catch (...) {
+        fprintf(stderr, "ERROR: '%s' is not an integer.\n", fps_cstr);
+        return 1;
+      }
+      printf("Setting target FPS to %d\n", fps);
+    }
+  }
+
+  InitWindow(WIDTH, HEIGHT, "Ping Pong");
+  SetTargetFPS(fps);
+  Load();
+
+  while (!WindowShouldClose()) {
+    BeginDrawing();
+      float dt = GetFrameTime();
+      Update(dt);
+      Draw();
+    EndDrawing();
+  }
+
+  Close();
+  CloseWindow();
+}
+
+bool check_collision(Rectangle &rect1, Rectangle &rect2)
+{
+  if (rect1.x + rect1.width < rect2.x ||
+    rect2.x + rect2.width < rect1.x ||
+    rect1.y + rect1.height < rect2.y ||
+    rect2.y + rect2.height < rect1.y) return false;
+  return true;
+}
+
 void Load() {
   InitAudioDevice();
 
@@ -116,6 +176,40 @@ void Load() {
   };
 }
 
+void Update(float dt)
+{
+  if (IsKeyPressed(KEY_SPACE)) paused = !paused;
+  if (paused) return;
+
+  ball.update(dt, []{
+    score_left += 1;
+    PlaySound(score_sound);
+  }, []{
+    score_right += 1;
+    PlaySound(score_sound);
+  });
+
+  if (check_collision(ball.rect, left_paddle.rect)) {
+    ball.rect.x = left_paddle.rect.x + left_paddle.rect.width;
+    ball.speed.x = std::fabsf(ball.speed.x);
+    PlaySound(pong_sound);
+  }
+
+  if (check_collision(ball.rect, right_paddle.rect)) {
+    ball.rect.x = right_paddle.rect.x - right_paddle.rect.width;
+    ball.speed.x = -std::fabsf(ball.speed.x);
+    PlaySound(pong_sound);
+  }
+
+  // W/S -> left
+  if (IsKeyDown(KEY_W)) left_paddle.up(dt);
+  if (IsKeyDown(KEY_S)) left_paddle.down(dt);
+
+  // up/down arrow -> right
+  if (IsKeyDown(KEY_UP)) right_paddle.up(dt);
+  if (IsKeyDown(KEY_DOWN)) right_paddle.down(dt);
+}
+
 void Draw()
 {
   ClearBackground(GetColor(0x181818FF));
@@ -139,73 +233,9 @@ void Draw()
   }
 }
 
-bool check_collision(Rectangle &rect1, Rectangle &rect2)
-{
-  if (rect1.x + rect1.width < rect2.x ||
-    rect2.x + rect2.width < rect1.x ||
-    rect1.y + rect1.height < rect2.y ||
-    rect2.y + rect2.height < rect1.y) return false;
-  return true;
-}
-
-void Update(float dt)
-{
-  if (IsKeyPressed(KEY_SPACE)) paused = !paused;
-  if (paused) return;
-
-  ball.update(dt, []{
-    score_left += 1;
-    PlaySound(score_sound);
-  }, []{
-    score_right += 1;
-    PlaySound(score_sound);
-  });
-
-  if (check_collision(ball.rect, left_paddle.rect)) {
-    ball.rect.x = left_paddle.rect.x + left_paddle.rect.width;
-    ball.speed.x = std::fabsf(ball.speed.x);
-    //IsSoundValid(pong_sound)
-    PlaySound(pong_sound);
-  }
-
-  if (check_collision(ball.rect, right_paddle.rect)) {
-    ball.rect.x = right_paddle.rect.x - right_paddle.rect.width;
-    ball.speed.x = -std::fabsf(ball.speed.x);
-    PlaySound(pong_sound);
-  }
-
-  // W/S -> left
-  if (IsKeyDown(KEY_W)) left_paddle.up(dt);
-  if (IsKeyDown(KEY_S)) left_paddle.down(dt);
-
-  // up/down arrow -> right
-  if (IsKeyDown(KEY_UP)) right_paddle.up(dt);
-  if (IsKeyDown(KEY_DOWN)) right_paddle.down(dt);
-}
-
 void Close()
 {
   UnloadSound(score_sound);
   UnloadSound(pong_sound);
   CloseAudioDevice();
 }
-
-int main()
-{
-  InitWindow(WIDTH, HEIGHT, "Ping Pong");
-  SetTargetFPS(180);
-  Load();
-
-  while (!WindowShouldClose()) {
-    BeginDrawing();
-      float dt = GetFrameTime();
-      Update(dt);
-      Draw();
-    EndDrawing();
-  }
-
-  Close();
-  CloseWindow();
-}
-
-// TODO: custom font
